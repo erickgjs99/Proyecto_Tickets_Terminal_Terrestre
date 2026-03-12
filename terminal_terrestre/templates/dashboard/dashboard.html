@@ -1,0 +1,245 @@
+{% extends "base.html" %}
+{% block title %}Dashboard{% endblock %}
+{% block page_title %}Dashboard{% endblock %}
+{% block nav_dashboard %}active{% endblock %}
+
+{% block extra_head %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+{% endblock %}
+
+{% block content %}
+
+<!-- KPI CARDS -->
+<div class="kpi-grid">
+  <div class="kpi-card">
+    <div class="kpi-icon green">💵</div>
+    <div>
+      <div class="kpi-label">Ingresos Hoy</div>
+      <div class="kpi-value">${{ resumen.ingresos_hoy|floatformat:2 }}</div>
+    </div>
+  </div>
+  <div class="kpi-card">
+    <div class="kpi-icon navy">🎫</div>
+    <div>
+      <div class="kpi-label">Tickets Generados</div>
+      <div class="kpi-value">{{ resumen.tickets_generados }}</div>
+    </div>
+  </div>
+  <div class="kpi-card">
+    <div class="kpi-icon amber">✅</div>
+    <div>
+      <div class="kpi-label">Activos</div>
+      <div class="kpi-value">{{ resumen.tickets_activos }}</div>
+    </div>
+  </div>
+  <div class="kpi-card">
+    <div class="kpi-icon teal">🔄</div>
+    <div>
+      <div class="kpi-label">Usados</div>
+      <div class="kpi-value">{{ resumen.tickets_usados }}</div>
+    </div>
+  </div>
+  <div class="kpi-card">
+    <div class="kpi-icon red">❌</div>
+    <div>
+      <div class="kpi-label">Expirados</div>
+      <div class="kpi-value">{{ resumen.tickets_expirados }}</div>
+    </div>
+  </div>
+</div>
+
+<!-- ALERTAS -->
+{% if alertas.tickets_por_expirar > 0 or alertas.tickets_con_error_hoy > 0 %}
+<div class="mb-3">
+  {% if alertas.tickets_por_expirar > 0 %}
+    <div class="alert alert-warn">
+      ⏰ <strong>{{ alertas.tickets_por_expirar }}</strong> ticket(s) expiran en los próximos 5 minutos
+    </div>
+  {% endif %}
+  {% if alertas.tickets_con_error_hoy > 0 %}
+    <div class="alert alert-error">
+      ⚠ <strong>{{ alertas.tickets_con_error_hoy }}</strong> ticket(s) con error de integración hoy
+    </div>
+  {% endif %}
+</div>
+{% endif %}
+
+<!-- GRÁFICAS -->
+<div class="grid-2 mb-3">
+
+  <div class="card">
+    <div class="card-title">📊 Ventas por Tipo (Hoy)</div>
+    {% if ventas_por_tipo %}
+      <div class="chart-wrap">
+        <canvas id="chart-tipo"></canvas>
+      </div>
+    {% else %}
+      <p class="muted text-center" style="padding:3rem 0;">Sin datos hoy</p>
+    {% endif %}
+  </div>
+
+  <div class="card">
+    <div class="card-title">🕐 Ventas por Hora (Hoy)</div>
+    {% if ventas_por_hora %}
+      <div class="chart-wrap">
+        <canvas id="chart-hora"></canvas>
+      </div>
+    {% else %}
+      <p class="muted text-center" style="padding:3rem 0;">Sin datos hoy</p>
+    {% endif %}
+  </div>
+
+</div>
+
+<!-- Ingresos 30 días -->
+<div class="card mb-3">
+  <div class="card-title">📈 Ingresos — Últimos 30 Días</div>
+  {% if ingresos_diarios %}
+    <div class="chart-wrap" style="height:220px;">
+      <canvas id="chart-ingresos"></canvas>
+    </div>
+  {% else %}
+    <p class="muted text-center" style="padding:3rem 0;">Sin datos</p>
+  {% endif %}
+</div>
+
+<!-- Tabla ventas por tipo -->
+<div class="card">
+  <div class="card-title">🗂️ Resumen por Tipo de Ticket (Hoy)</div>
+  <div class="table-wrap">
+    <table class="table">
+      <thead>
+        <tr>
+          <th>Tipo</th>
+          <th>Cantidad</th>
+          <th>V. Unitario</th>
+          <th>V. Total</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for item in ventas_por_tipo %}
+        <tr>
+          <td>{{ item.tipo }}</td>
+          <td class="mono bold">{{ item.cantidad }}</td>
+          <td class="mono">${{ item.precio_unitario|floatformat:2 }}</td>
+          <td class="mono bold" style="color: var(--navy-mid);">${{ item.total|floatformat:2 }}</td>
+        </tr>
+        {% empty %}
+        <tr>
+          <td colspan="4" class="text-center muted" style="padding:2rem;">Sin ventas hoy</td>
+        </tr>
+        {% endfor %}
+        {% if ventas_por_tipo %}
+        <tr style="background: var(--surface2); font-weight:700;">
+          <td colspan="3" class="text-right">TOTAL</td>
+          <td class="mono" style="color: var(--navy);">
+            ${{ resumen.ingresos_hoy|floatformat:2 }}
+          </td>
+        </tr>
+        {% endif %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+  /* Colores institucionales */
+  const COLORS = ['#0d1b2e','#e8a020','#0ea5c8','#16a34a','#dc2626','#8b5cf6','#d97706'];
+
+  /* Helpers */
+  const gridColor = getComputedStyle(document.documentElement)
+    .getPropertyValue('--border').trim() || '#2a3f5f';
+
+  function makeBarOpts(labels, data, colors, xLabel) {
+    return {
+      type: 'bar',
+      data: {
+        labels,
+        datasets: [{
+          data,
+          backgroundColor: colors,
+          borderRadius: 5,
+          borderSkipped: false,
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: { legend: { display: false } },
+        scales: {
+          x: { grid: { color: 'transparent' },
+               ticks: { font: { size: 11 } } },
+          y: { grid: { color: gridColor + '44' },
+               ticks: { font: { size: 11 } } },
+        }
+      }
+    };
+  }
+
+  /* ---- Chart: Ventas por tipo ---- */
+  {% if ventas_por_tipo %}
+  (function () {
+    const labels = {{ ventas_tipo_labels|safe }};
+    const data   = {{ ventas_tipo_totales|safe }};
+    const ctx = document.getElementById('chart-tipo');
+    new Chart(ctx, makeBarOpts(
+      labels, data,
+      labels.map((_, i) => COLORS[i % COLORS.length])
+    ));
+  })();
+  {% endif %}
+
+  /* ---- Chart: Ventas por hora ---- */
+  {% if ventas_por_hora %}
+  (function () {
+    const labels = {{ ventas_hora_labels|safe }};
+    const data   = {{ ventas_hora_cant|safe }};
+    const ctx = document.getElementById('chart-hora');
+    new Chart(ctx, makeBarOpts(
+      labels, data,
+      labels.map(() => '#1e3358')
+    ));
+  })();
+  {% endif %}
+
+  /* ---- Chart: Ingresos 30 días ---- */
+  {% if ingresos_diarios %}
+  (function () {
+    const labels = {{ ingresos_labels|safe }};
+    const data   = {{ ingresos_totales|safe }};
+    const ctx = document.getElementById('chart-ingresos');
+    new Chart(ctx, {
+      type: 'line',
+      data: {
+        labels,
+        datasets: [{
+          data,
+          borderColor: '#0d1b2e',
+          backgroundColor: 'rgba(13,27,46,.08)',
+          borderWidth: 2.5,
+          fill: true,
+          tension: .35,
+          pointRadius: 3,
+          pointBackgroundColor: '#e8a020',
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: { legend: { display: false } },
+        scales: {
+          x: { grid: { color: 'transparent' },
+               ticks: { font: { size: 10 }, maxTicksLimit: 10 } },
+          y: { grid: { color: gridColor + '44' },
+               ticks: { font: { size: 11 },
+                        callback: v => '$' + v.toFixed(0) } },
+        }
+      }
+    });
+  })();
+  {% endif %}
+</script>
+{% endblock %}

@@ -1,0 +1,435 @@
+{% extends "base.html" %}
+{% block title %}Generar QR{% endblock %}
+{% block page_title %}Generar Ticket QR{% endblock %}
+{% block nav_generar %}active{% endblock %}
+
+{% block extra_head %}
+<style>
+/* ================================================================
+   TICKET TÉRMICA 58mm — vista pantalla
+   ================================================================ */
+.ticket-fisico {
+  font-family: Arial, Helvetica, sans-serif;
+  width: 200px;          /* ≈ 52mm a 96dpi — previsualización pantalla */
+  margin: 0 auto;
+  padding: 8px 10px;
+  border: 1px solid #bbb;
+  background: #fff;
+  text-align: center;
+  color: #000;
+  font-size: 9px;
+  line-height: 1.3;
+}
+.ticket-fisico .tf-title {
+  font-size: 11px;
+  font-weight: 900;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  margin-bottom: 1px;
+}
+.ticket-fisico .tf-subtitle {
+  font-size: 8.5px;
+  margin-bottom: 1px;
+}
+.ticket-fisico .tf-seccion {
+  font-size: 8px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  margin-bottom: 3px;
+}
+.ticket-fisico hr {
+  border: none;
+  border-top: 1px solid #000;
+  margin: 4px 0;
+}
+.ticket-fisico .tf-numero {
+  font-size: 15px;
+  font-weight: 900;
+  letter-spacing: 0.5px;
+  margin: 4px 0 2px;
+}
+.ticket-fisico .tf-tipo {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  margin-bottom: 3px;
+}
+.ticket-fisico .tf-valor {
+  font-size: 9px;
+  font-weight: 700;
+  margin-bottom: 1px;
+}
+.ticket-fisico .tf-fecha {
+  font-size: 8.5px;
+  margin-bottom: 4px;
+}
+.ticket-fisico .tf-qr img {
+  width: 130px;
+  height: 130px;
+  display: block;
+  margin: 2px auto;
+}
+.ticket-fisico .tf-lema {
+  font-size: 7.5px;
+  font-style: italic;
+  margin: 4px 0 2px;
+}
+.ticket-fisico .tf-firma {
+  font-size: 9px;
+  font-weight: 700;
+  margin-top: 3px;
+}
+.ticket-fisico .tf-cargo {
+  font-size: 7.5px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 2px;
+}
+
+/* El área de impresión no se muestra en pantalla */
+.print-area { display: none; }
+
+/* Línea de corte entre copias (solo pantalla, visible como referencia) */
+.corte-linea {
+  width: 200px;
+  margin: 8px auto;
+  border-top: 1px dashed #aaa;
+  text-align: center;
+  font-size: 8px;
+  color: #aaa;
+  padding-top: 2px;
+}
+
+/* ================================================================
+   IMPRESIÓN TÉRMICA — @page 58mm, 2 copias apiladas
+   ================================================================ */
+@media print {
+  @page {
+    size: 58mm auto;   /* ancho exacto de rollo térmico 58mm */
+    margin: 1.5mm 2mm; /* márgenes mínimos */
+  }
+
+  body * { visibility: hidden !important; }
+
+  .print-area,
+  .print-area * { visibility: visible !important; }
+
+  .print-area {
+    display: block !important;  /* sobrescribe el display:none de pantalla */
+    position: absolute;
+    top: 0; left: 0;
+    width: 54mm;        /* 58mm - 4mm de márgenes */
+    background: #fff;
+  }
+
+  /* Ticket ajustado a 54mm imprimibles */
+  .print-area .ticket-fisico {
+    width: 54mm;
+    padding: 1.5mm 1mm;
+    border: none;
+    font-size: 7.5pt;
+    page-break-inside: avoid;
+  }
+  .print-area .ticket-fisico .tf-title   { font-size: 9pt; }
+  .print-area .ticket-fisico .tf-subtitle{ font-size: 7pt; }
+  .print-area .ticket-fisico .tf-seccion { font-size: 6.5pt; letter-spacing: 0.8px; }
+  .print-area .ticket-fisico .tf-numero  { font-size: 13pt; }
+  .print-area .ticket-fisico .tf-tipo    { font-size: 8.5pt; }
+  .print-area .ticket-fisico .tf-valor   { font-size: 8pt; }
+  .print-area .ticket-fisico .tf-fecha   { font-size: 7.5pt; }
+  .print-area .ticket-fisico .tf-qr img  { width: 42mm; height: 42mm; }
+  .print-area .ticket-fisico .tf-lema    { font-size: 6.5pt; }
+  .print-area .ticket-fisico .tf-firma   { font-size: 7.5pt; }
+  .print-area .ticket-fisico .tf-cargo   { font-size: 6pt; }
+
+  /* Línea de corte entre copias */
+  .print-area .corte-linea {
+    width: 54mm;
+    border-top: 1px dashed #000;
+    margin: 3mm 0;
+    font-size: 6pt;
+    color: #000;
+    visibility: visible !important;
+  }
+
+  .no-print         { display: none !important; }
+  .no-print-hide    { display: none !important; }
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="grid-2">
+
+  <!-- ================================================================
+       FORMULARIO
+       ================================================================ -->
+  <div>
+    <div class="card">
+      <div class="card-title">🎫 Nuevo Ticket</div>
+
+      <form method="post" action="{% url 'qr_generar' %}" id="form-generar">
+        {% csrf_token %}
+
+        <div class="field">
+          <label class="field-label" for="tipo_ticket">
+            Tipo de Ticket <span class="req">*</span>
+          </label>
+          <select class="select" name="tipo_ticket" id="tipo_ticket" required>
+            <option value="">— Selecciona tipo —</option>
+            {% for tipo in tipos_ticket %}
+              <option value="{{ tipo.id }}"
+                data-precio="{{ tipo.precio }}"
+                {% if form_data.tipo_ticket == tipo.id|stringformat:"s" %}selected{% endif %}>
+                {{ tipo.nombre }} — ${{ tipo.precio }}
+              </option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div class="field">
+          <label class="field-label">Tiempo de expiración</label>
+          <div class="time-presets" id="presets">
+            {% for m in minutos_opciones %}
+              <button type="button" class="time-preset {% if m == minutos_default %}active{% endif %}"
+                      data-min="{{ m }}" onclick="selectMinutos(this)">
+                {{ m }} min
+              </button>
+            {% endfor %}
+          </div>
+          <input type="number" class="input" name="minutos_expiracion"
+                 id="minutos_input" placeholder="O escribe minutos personalizados…"
+                 min="1" max="1440"
+                 value="{{ form_data.minutos_expiracion|default:'' }}" />
+        </div>
+
+        <!-- Preview precio -->
+        <div id="precio-preview" style="
+          display: none;
+          background: var(--surface2); border: 1px solid var(--border);
+          border-radius: 8px; padding: 12px 16px; margin-bottom: 1rem;
+          justify-content: space-between; align-items: center;">
+          <span id="tipo-nombre" style="font-weight:500;"></span>
+          <span id="tipo-precio" class="mono bold" style="font-size:22px; color: var(--navy-mid);"></span>
+        </div>
+
+        <button type="submit" class="btn btn-amber btn-lg btn-full" id="btn-generar">
+          ⚡ Generar Ticket QR
+        </button>
+      </form>
+    </div>
+  </div>
+
+  <!-- ================================================================
+       RESULTADO — pantalla
+       ================================================================ -->
+  <div>
+    {% if ticket %}
+
+    <!-- Vista pantalla (info extra, no se imprime) -->
+    <div class="card no-print" id="ticket-result" style="margin-bottom:1rem;">
+      <div style="display:flex; align-items:center; gap:12px; margin-bottom:1rem;">
+        <div class="qr-ticket-num" style="font-size:20px; font-weight:800; color:var(--navy);">
+          {% if ticket.venta %}{{ ticket.venta.numero_ticket }}{% else %}—{% endif %}
+        </div>
+        <span class="badge badge-{{ ticket.estado }}">{{ ticket.estado }}</span>
+      </div>
+
+      <div class="ticket-meta">
+        <div class="ticket-meta-item">
+          <div class="ticket-meta-key">Tipo</div>
+          <div class="ticket-meta-val">{{ ticket.tipo_ticket.nombre }}</div>
+        </div>
+        <div class="ticket-meta-item">
+          <div class="ticket-meta-key">Precio</div>
+          <div class="ticket-meta-val mono">${{ ticket.precio }}</div>
+        </div>
+        <div class="ticket-meta-item">
+          <div class="ticket-meta-key">Expiración</div>
+          <div class="ticket-meta-val">{{ ticket.minutos_expiracion }} min</div>
+        </div>
+        {% if ticket.cooperativa %}
+        <div class="ticket-meta-item">
+          <div class="ticket-meta-key">Cooperativa</div>
+          <div class="ticket-meta-val">{{ ticket.cooperativa.nombre }}</div>
+        </div>
+        {% endif %}
+      </div>
+
+      <div class="hik-status {% if ticket.hik_integracion_ok %}hik-ok{% else %}hik-fail{% endif %}"
+           style="margin-bottom:1rem;">
+        {% if ticket.hik_integracion_ok %}
+          ✓ Hikvision: Acceso registrado correctamente
+        {% else %}
+          ⚠ Hikvision: Error en la integración — verificar dispositivo
+        {% endif %}
+      </div>
+
+      <button onclick="window.print()" class="btn btn-primary btn-full">
+        🖨️ Imprimir Ticket (x2)
+      </button>
+    </div>
+
+    {% else %}
+    <div class="card no-print" style="
+      min-height: 340px;
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      text-align: center; color: var(--text3);">
+      <div style="font-size:52px; margin-bottom:1rem;">📲</div>
+      <p style="font-weight:500; font-size:16px; color: var(--text2);">
+        El QR generado aparecerá aquí
+      </p>
+      <p class="small muted mt-2">
+        Completa el formulario y presiona <strong>Generar</strong>
+      </p>
+    </div>
+    {% endif %}
+  </div>
+
+</div>
+
+<!-- ================================================================
+     ÁREA DE IMPRESIÓN — 2 copias apiladas (térmica 58mm)
+     ================================================================ -->
+{% if ticket %}
+<div class="print-area">
+
+  {% for copia in "12" %}
+
+  <div class="ticket-fisico">
+    <div class="tf-title">Terminal Terrestre</div>
+    <div class="tf-subtitle">Monseñor Santiago Fernández García</div>
+    <div class="tf-seccion">Control de Acceso</div>
+    <hr />
+    <div class="tf-numero">
+      {% if ticket.venta %}{{ ticket.venta.numero_ticket }}{% else %}—{% endif %}
+    </div>
+    <div class="tf-tipo">{{ ticket.tipo_ticket.nombre }}</div>
+    <div class="tf-valor">Valor: ${{ ticket.precio }}</div>
+    <div class="tf-fecha">
+      {{ ticket.fecha_creacion|date:"d/m/Y" }}&nbsp;&nbsp;Hora:&nbsp;{{ ticket.fecha_creacion|date:"H:i" }}
+    </div>
+    <hr />
+    <div class="tf-qr">
+      <img src="{{ ticket.imagen_qr_base64 }}" alt="QR" />
+    </div>
+    <hr />
+    <div class="tf-lema">Por un terminal seguro, ordenado y moderno.</div>
+    <hr />
+    <div class="tf-firma">Dr. Jorge Montero R.</div>
+    <div class="tf-cargo">Alcalde</div>
+  </div>
+
+  {% if forloop.first %}
+  <div class="corte-linea">✂ &nbsp; cortar &nbsp; ✂</div>
+  {% endif %}
+
+  {% endfor %}
+
+</div>
+{% endif %}
+
+<!-- ================================================================
+     TICKETS RECIENTES
+     ================================================================ -->
+<div class="card mt-3 no-print">
+  <div class="card-title">🕐 Tickets Recientes</div>
+  <div class="table-wrap">
+    <table class="table">
+      <thead>
+        <tr>
+          <th>Nº Ticket</th>
+          <th>Código</th>
+          <th>Tipo</th>
+          <th>Precio</th>
+          <th>Cooperativa</th>
+          <th>Expira</th>
+          <th>Estado</th>
+          <th>Hik</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for t in tickets_recientes %}
+        <tr>
+          <td class="mono bold">
+            {{ t.venta.numero_ticket|default:"—" }}
+          </td>
+          <td class="mono small muted">{{ t.codigo|truncatechars:14 }}</td>
+          <td>{{ t.tipo_ticket.nombre }}</td>
+          <td class="mono">${{ t.precio }}</td>
+          <td class="muted small">{{ t.cooperativa.nombre|default:"—" }}</td>
+          <td class="mono small">
+            {{ t.fecha_expiracion|date:"H:i" }}
+          </td>
+          <td><span class="badge badge-{{ t.estado }}">{{ t.estado }}</span></td>
+          <td style="font-size:18px; text-align:center;">
+            {% if t.hik_usuario_ok and t.hik_tarjeta_ok %}✅{% else %}❌{% endif %}
+          </td>
+        </tr>
+        {% empty %}
+        <tr>
+          <td colspan="8" class="text-center muted" style="padding:2rem;">
+            No hay tickets generados hoy
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+  /* ---- Minutos presets ---- */
+  const minutosInput = document.getElementById('minutos_input');
+
+  function selectMinutos(btn) {
+    document.querySelectorAll('.time-preset').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    minutosInput.value = '';
+  }
+
+  minutosInput.addEventListener('input', function () {
+    if (this.value) {
+      document.querySelectorAll('.time-preset').forEach(b => b.classList.remove('active'));
+    }
+  });
+
+  document.getElementById('form-generar').addEventListener('submit', function () {
+    const active = document.querySelector('.time-preset.active');
+    if (active && !minutosInput.value) {
+      minutosInput.value = active.dataset.min;
+    }
+    const btn = document.getElementById('btn-generar');
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner"></span> Generando…';
+  });
+
+  /* ---- Preview precio ---- */
+  const tipoSelect = document.getElementById('tipo_ticket');
+  const preview    = document.getElementById('precio-preview');
+  const tipoNombre = document.getElementById('tipo-nombre');
+  const tipoPrecio = document.getElementById('tipo-precio');
+
+  tipoSelect.addEventListener('change', function () {
+    const opt = this.options[this.selectedIndex];
+    const precio = opt.dataset ? opt.dataset.precio : '';
+    if (opt.value && precio) {
+      tipoNombre.textContent = opt.text.split('—')[0].trim();
+      tipoPrecio.textContent = '$' + parseFloat(precio).toFixed(2);
+      preview.style.display = 'flex';
+    } else {
+      preview.style.display = 'none';
+    }
+  });
+
+  if (tipoSelect.value) tipoSelect.dispatchEvent(new Event('change'));
+
+  {% if ticket %}
+    document.getElementById('ticket-result')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  {% endif %}
+</script>
+{% endblock %}

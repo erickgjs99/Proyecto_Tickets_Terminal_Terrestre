@@ -1,0 +1,210 @@
+{% extends "base.html" %}
+{% block title %}Tipos de Ticket{% endblock %}
+{% block page_title %}Tipos de Ticket{% endblock %}
+{% block nav_tipos %}active{% endblock %}
+
+{% block content %}
+
+<div class="flex flex-center" style="justify-content:flex-end; margin-bottom:1rem;">
+  {% if request.user.rol == 'admin' %}
+  <button class="btn btn-amber" onclick="openModal('modal-crear')">
+    + Nuevo Tipo
+  </button>
+  {% endif %}
+</div>
+
+<div class="card">
+  <div class="table-wrap">
+    <table class="table">
+      <thead>
+        <tr>
+          <th>Nombre</th>
+          <th>Prefijo</th>
+          <th>Precio</th>
+          <th>Descripción</th>
+          <th>Estado</th>
+          <th>Creado</th>
+          {% if request.user.rol == 'admin' %}<th>Acciones</th>{% endif %}
+        </tr>
+      </thead>
+      <tbody>
+        {% for tipo in tipos %}
+        <tr>
+          <td class="bold">{{ tipo.nombre }}</td>
+          <td>
+            <span class="mono bold" style="
+              background: var(--surface2); border: 1px solid var(--border);
+              border-radius: 5px; padding: 2px 8px; font-size: 13px;
+              color: var(--navy-mid);">
+              {{ tipo.prefijo }}
+            </span>
+            <span class="muted small" style="margin-left:4px;">→ {{ tipo.prefijo }}-000001…</span>
+          </td>
+          <td class="mono bold" style="color: var(--navy-mid);">
+            ${{ tipo.precio|floatformat:2 }}
+          </td>
+          <td class="muted small">{{ tipo.descripcion|default:"—" }}</td>
+          <td>
+            <span class="badge {% if tipo.activo %}badge-activo{% else %}badge-expirado{% endif %}">
+              {% if tipo.activo %}Activo{% else %}Inactivo{% endif %}
+            </span>
+          </td>
+          <td class="mono small muted">{{ tipo.fecha_creacion|date:"d/m/Y" }}</td>
+          {% if request.user.rol == 'admin' %}
+          <td>
+            <div class="flex gap-8">
+              <button class="btn btn-ghost btn-sm"
+                onclick="editarTipo({{ tipo.id }}, '{{ tipo.nombre|escapejs }}', '{{ tipo.prefijo|escapejs }}', '{{ tipo.precio }}', '{{ tipo.descripcion|escapejs }}', {{ tipo.activo|yesno:'true,false' }})">
+                ✏️ Editar
+              </button>
+              <form id="del-tipo-{{ tipo.id }}" method="post"
+                    action="{% url 'tipo_ticket_delete' tipo.id %}" style="display:inline;">
+                {% csrf_token %}
+                <button type="button" class="btn btn-danger btn-sm"
+                  onclick="confirmDelete('del-tipo-{{ tipo.id }}', '{{ tipo.nombre|escapejs }}')">
+                  🗑️
+                </button>
+              </form>
+            </div>
+          </td>
+          {% endif %}
+        </tr>
+        {% empty %}
+        <tr>
+          <td colspan="7" class="text-center muted" style="padding:2rem;">
+            No hay tipos de ticket registrados
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- ================================================================
+     MODAL CREAR
+     ================================================================ -->
+{% if request.user.rol == 'admin' %}
+<div class="modal-overlay" id="modal-crear">
+  <div class="modal-box">
+    <div class="modal-header">
+      <div class="modal-title">Nuevo Tipo de Ticket</div>
+      <button class="modal-close" onclick="closeModal('modal-crear')">×</button>
+    </div>
+    <form method="post" action="{% url 'tipo_ticket_create' %}">
+      {% csrf_token %}
+      <div class="field">
+        <label class="field-label">Nombre <span class="req">*</span></label>
+        <input type="text" class="input" name="nombre" id="crear-nombre" required />
+      </div>
+      <div class="field">
+        <label class="field-label">
+          Prefijo de numeración <span class="req">*</span>
+          <span class="muted small" style="font-weight:400;">
+            — Ej: BIP → BIP-000001
+          </span>
+        </label>
+        <input type="text" class="input" name="prefijo" id="crear-prefijo"
+               placeholder="Ej: BIP, TK, URB…"
+               maxlength="10" required
+               style="text-transform:uppercase; width:160px;"
+               oninput="updatePreview('crear-prefijo','crear-preview')" />
+        <div id="crear-preview" class="muted small" style="margin-top:4px;">
+          Formato: TK-000001
+        </div>
+      </div>
+      <div class="field">
+        <label class="field-label">Precio USD <span class="req">*</span></label>
+        <input type="number" class="input" name="precio" step="0.01" min="0.01" required />
+      </div>
+      <div class="field">
+        <label class="field-label">Descripción</label>
+        <textarea class="textarea" name="descripcion"></textarea>
+      </div>
+      <div class="field">
+        <label class="field-label">Estado</label>
+        <select class="select" name="activo">
+          <option value="true">Activo</option>
+          <option value="false">Inactivo</option>
+        </select>
+      </div>
+      <div class="flex gap-8" style="justify-content:flex-end;">
+        <button type="button" class="btn btn-ghost" onclick="closeModal('modal-crear')">Cancelar</button>
+        <button type="submit" class="btn btn-primary">Guardar</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- MODAL EDITAR -->
+<div class="modal-overlay" id="modal-editar">
+  <div class="modal-box">
+    <div class="modal-header">
+      <div class="modal-title">Editar Tipo de Ticket</div>
+      <button class="modal-close" onclick="closeModal('modal-editar')">×</button>
+    </div>
+    <form method="post" id="form-editar-tipo" action="">
+      {% csrf_token %}
+      <input type="hidden" name="_method" value="PUT" />
+      <div class="field">
+        <label class="field-label">Nombre <span class="req">*</span></label>
+        <input type="text" class="input" name="nombre" id="edit-nombre" required />
+      </div>
+      <div class="field">
+        <label class="field-label">
+          Prefijo de numeración <span class="req">*</span>
+          <span class="muted small" style="font-weight:400;">
+            — Ej: BIP → BIP-000001
+          </span>
+        </label>
+        <input type="text" class="input" name="prefijo" id="edit-prefijo"
+               maxlength="10" required
+               style="text-transform:uppercase; width:160px;"
+               oninput="updatePreview('edit-prefijo','edit-preview')" />
+        <div id="edit-preview" class="muted small" style="margin-top:4px;"></div>
+      </div>
+      <div class="field">
+        <label class="field-label">Precio USD <span class="req">*</span></label>
+        <input type="number" class="input" name="precio" id="edit-precio" step="0.01" min="0.01" required />
+      </div>
+      <div class="field">
+        <label class="field-label">Descripción</label>
+        <textarea class="textarea" name="descripcion" id="edit-descripcion"></textarea>
+      </div>
+      <div class="field">
+        <label class="field-label">Estado</label>
+        <select class="select" name="activo" id="edit-activo">
+          <option value="true">Activo</option>
+          <option value="false">Inactivo</option>
+        </select>
+      </div>
+      <div class="flex gap-8" style="justify-content:flex-end;">
+        <button type="button" class="btn btn-ghost" onclick="closeModal('modal-editar')">Cancelar</button>
+        <button type="submit" class="btn btn-primary">Guardar cambios</button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endif %}
+
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+  function updatePreview(inputId, previewId) {
+    const val = document.getElementById(inputId).value.trim().toUpperCase() || 'TK';
+    document.getElementById(previewId).textContent = `Formato: ${val}-000001`;
+  }
+
+  function editarTipo(id, nombre, prefijo, precio, descripcion, activo) {
+    document.getElementById('form-editar-tipo').action = `/tickets/tipos/${id}/editar/`;
+    document.getElementById('edit-nombre').value = nombre;
+    document.getElementById('edit-prefijo').value = prefijo;
+    document.getElementById('edit-precio').value = precio;
+    document.getElementById('edit-descripcion').value = descripcion;
+    document.getElementById('edit-activo').value = activo ? 'true' : 'false';
+    updatePreview('edit-prefijo', 'edit-preview');
+    openModal('modal-editar');
+  }
+</script>
+{% endblock %}

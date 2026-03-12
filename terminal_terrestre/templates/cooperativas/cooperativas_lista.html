@@ -1,0 +1,146 @@
+{% extends "base.html" %}
+{% block title %}Cooperativas{% endblock %}
+{% block page_title %}Cooperativas{% endblock %}
+{% block nav_cooperativas %}active{% endblock %}
+
+{% block content %}
+
+<div class="flex" style="justify-content:flex-end; margin-bottom:1rem;">
+  {% if request.user.rol == 'admin' %}
+  <button class="btn btn-amber" onclick="openModal('modal-crear')">
+    + Nueva Cooperativa
+  </button>
+  {% endif %}
+</div>
+
+<div class="card">
+  <div class="table-wrap">
+    <table class="table">
+      <thead>
+        <tr>
+          <th>Nombre</th>
+          <th>Máx. Boletos</th>
+          <th>Utilizados</th>
+          <th>Disponibles</th>
+          <th>Estado</th>
+          {% if request.user.rol == 'admin' %}<th>Acciones</th>{% endif %}
+        </tr>
+      </thead>
+      <tbody>
+        {% for coop in cooperativas %}
+        <tr>
+          <td class="bold">{{ coop.nombre }}</td>
+          <td class="mono text-center">
+            {% if coop.max_boletos == 0 %}∞{% else %}{{ coop.max_boletos }}{% endif %}
+          </td>
+          <td class="mono text-center">{{ coop.boletos_utilizados }}</td>
+          <td class="mono text-center">{{ coop.boletos_disponibles }}</td>
+          <td>
+            <span class="badge
+              {% if coop.estado == 'activo' %}badge-activo
+              {% elif coop.estado == 'agotado' %}badge-error
+              {% else %}badge-expirado{% endif %}">
+              {{ coop.estado }}
+            </span>
+          </td>
+          {% if request.user.rol == 'admin' %}
+          <td>
+            <button class="btn btn-ghost btn-sm"
+              onclick="editarCoop({{ coop.id }}, '{{ coop.nombre|escapejs }}', {{ coop.max_boletos }}, '{{ coop.estado }}')">
+              ✏️ Editar
+            </button>
+          </td>
+          {% endif %}
+        </tr>
+        {% empty %}
+        <tr>
+          <td colspan="6" class="text-center muted" style="padding:2rem;">
+            No hay cooperativas registradas
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- Modales solo para admin -->
+{% if request.user.rol == 'admin' %}
+
+<div class="modal-overlay" id="modal-crear">
+  <div class="modal-box">
+    <div class="modal-header">
+      <div class="modal-title">Nueva Cooperativa</div>
+      <button class="modal-close" onclick="closeModal('modal-crear')">×</button>
+    </div>
+    <form method="post" action="{% url 'cooperativa_create' %}">
+      {% csrf_token %}
+      <div class="field">
+        <label class="field-label">Nombre <span class="req">*</span></label>
+        <input type="text" class="input" name="nombre" required />
+      </div>
+      <div class="field">
+        <label class="field-label">Máximo de boletos (0 = sin límite)</label>
+        <input type="number" class="input" name="max_boletos" value="0" min="0" />
+      </div>
+      <div class="field">
+        <label class="field-label">Estado</label>
+        <select class="select" name="estado">
+          <option value="activo">Activo</option>
+          <option value="inactivo">Inactivo</option>
+        </select>
+      </div>
+      <div class="flex gap-8" style="justify-content:flex-end;">
+        <button type="button" class="btn btn-ghost" onclick="closeModal('modal-crear')">Cancelar</button>
+        <button type="submit" class="btn btn-primary">Guardar</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<div class="modal-overlay" id="modal-editar">
+  <div class="modal-box">
+    <div class="modal-header">
+      <div class="modal-title">Editar Cooperativa</div>
+      <button class="modal-close" onclick="closeModal('modal-editar')">×</button>
+    </div>
+    <form method="post" id="form-editar-coop" action="">
+      {% csrf_token %}
+      <div class="field">
+        <label class="field-label">Nombre <span class="req">*</span></label>
+        <input type="text" class="input" name="nombre" id="edit-nombre" required />
+      </div>
+      <div class="field">
+        <label class="field-label">Máximo de boletos (0 = sin límite)</label>
+        <input type="number" class="input" name="max_boletos" id="edit-max" min="0" />
+      </div>
+      <div class="field">
+        <label class="field-label">Estado</label>
+        <select class="select" name="estado" id="edit-estado">
+          <option value="activo">Activo</option>
+          <option value="inactivo">Inactivo</option>
+          <option value="agotado">Agotado</option>
+        </select>
+      </div>
+      <div class="flex gap-8" style="justify-content:flex-end;">
+        <button type="button" class="btn btn-ghost" onclick="closeModal('modal-editar')">Cancelar</button>
+        <button type="submit" class="btn btn-primary">Guardar cambios</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+{% endif %}
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+  function editarCoop(id, nombre, max, estado) {
+    document.getElementById('form-editar-coop').action = `/cooperativas/${id}/editar/`;
+    document.getElementById('edit-nombre').value = nombre;
+    document.getElementById('edit-max').value = max;
+    document.getElementById('edit-estado').value = estado;
+    openModal('modal-editar');
+  }
+</script>
+{% endblock %}

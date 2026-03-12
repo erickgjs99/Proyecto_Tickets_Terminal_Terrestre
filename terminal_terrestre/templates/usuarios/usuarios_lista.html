@@ -1,0 +1,205 @@
+{% extends "base.html" %}
+{% block title %}Usuarios{% endblock %}
+{% block page_title %}Usuarios del Sistema{% endblock %}
+{% block nav_usuarios %}active{% endblock %}
+
+{% block content %}
+
+<div class="flex" style="justify-content:flex-end; margin-bottom:1rem;">
+  {% if request.user.rol == 'admin' %}
+  <button class="btn btn-amber" onclick="openModal('modal-crear')">
+    + Nuevo Usuario
+  </button>
+  {% endif %}
+</div>
+
+<div class="card">
+  <div class="table-wrap">
+    <table class="table">
+      <thead>
+        <tr>
+          <th>Usuario</th>
+          <th>Nombre Completo</th>
+          <th>Rol</th>
+          <th>Email</th>
+          <th>Activo</th>
+          <th>Último acceso</th>
+          {% if request.user.rol == 'admin' %}<th>Acciones</th>{% endif %}
+        </tr>
+      </thead>
+      <tbody>
+        {% for u in usuarios %}
+        <tr>
+          <td class="mono bold">{{ u.username }}</td>
+          <td>{{ u.get_full_name|default:"—" }}</td>
+          <td>
+            <span class="badge badge-{{ u.rol }}">{{ u.get_rol_display }}</span>
+          </td>
+          <td class="muted small">{{ u.email|default:"—" }}</td>
+          <td>
+            <span class="badge {% if u.activo %}badge-activo{% else %}badge-error{% endif %}">
+              {% if u.activo %}Sí{% else %}No{% endif %}
+            </span>
+          </td>
+          <td class="mono small muted">
+            {{ u.last_login|date:"d/m/Y H:i"|default:"Nunca" }}
+          </td>
+          {% if request.user.rol == 'admin' %}
+          <td>
+            <div class="flex gap-8">
+              <button class="btn btn-ghost btn-sm"
+                onclick="editarUsuario({{ u.id }},'{{ u.username|escapejs }}','{{ u.first_name|escapejs }}','{{ u.last_name|escapejs }}','{{ u.email|escapejs }}','{{ u.rol }}','{{ u.telefono|escapejs }}',{{ u.activo|yesno:'true,false' }})">
+                ✏️
+              </button>
+              {% if u.id != request.user.id %}
+              <form id="del-user-{{ u.id }}" method="post"
+                    action="{% url 'usuario_delete' u.id %}" style="display:inline;">
+                {% csrf_token %}
+                <button type="button" class="btn btn-danger btn-sm"
+                  onclick="confirmDelete('del-user-{{ u.id }}', '{{ u.username|escapejs }}')">
+                  🗑️
+                </button>
+              </form>
+              {% endif %}
+            </div>
+          </td>
+          {% endif %}
+        </tr>
+        {% empty %}
+        <tr>
+          <td colspan="7" class="text-center muted" style="padding:2rem;">Sin usuarios</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+{% if request.user.rol == 'admin' %}
+
+<!-- MODAL CREAR -->
+<div class="modal-overlay" id="modal-crear">
+  <div class="modal-box">
+    <div class="modal-header">
+      <div class="modal-title">Nuevo Usuario</div>
+      <button class="modal-close" onclick="closeModal('modal-crear')">×</button>
+    </div>
+    <form method="post" action="{% url 'usuario_create' %}">
+      {% csrf_token %}
+      <div class="grid-2" style="gap:1rem;">
+        <div class="field">
+          <label class="field-label">Usuario <span class="req">*</span></label>
+          <input type="text" class="input" name="username" required />
+        </div>
+        <div class="field">
+          <label class="field-label">Contraseña <span class="req">*</span></label>
+          <input type="password" class="input" name="password" required />
+        </div>
+        <div class="field">
+          <label class="field-label">Nombre</label>
+          <input type="text" class="input" name="first_name" />
+        </div>
+        <div class="field">
+          <label class="field-label">Apellido</label>
+          <input type="text" class="input" name="last_name" />
+        </div>
+      </div>
+      <div class="field">
+        <label class="field-label">Email</label>
+        <input type="email" class="input" name="email" />
+      </div>
+      <div class="grid-2" style="gap:1rem;">
+        <div class="field">
+          <label class="field-label">Rol <span class="req">*</span></label>
+          <select class="select" name="rol">
+            <option value="operador">Operador</option>
+            <option value="supervisor">Supervisor</option>
+            <option value="admin">Administrador</option>
+          </select>
+        </div>
+        <div class="field">
+          <label class="field-label">Teléfono</label>
+          <input type="text" class="input" name="telefono" />
+        </div>
+      </div>
+      <div class="flex gap-8" style="justify-content:flex-end;">
+        <button type="button" class="btn btn-ghost" onclick="closeModal('modal-crear')">Cancelar</button>
+        <button type="submit" class="btn btn-primary">Crear usuario</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- MODAL EDITAR -->
+<div class="modal-overlay" id="modal-editar">
+  <div class="modal-box">
+    <div class="modal-header">
+      <div class="modal-title">Editar Usuario</div>
+      <button class="modal-close" onclick="closeModal('modal-editar')">×</button>
+    </div>
+    <form method="post" id="form-editar-usuario" action="">
+      {% csrf_token %}
+      <div class="grid-2" style="gap:1rem;">
+        <div class="field">
+          <label class="field-label">Usuario <span class="req">*</span></label>
+          <input type="text" class="input" name="username" id="eu-username" required />
+        </div>
+        <div class="field">
+          <label class="field-label">Nueva contraseña (dejar vacío para no cambiar)</label>
+          <input type="password" class="input" name="password" />
+        </div>
+        <div class="field">
+          <label class="field-label">Nombre</label>
+          <input type="text" class="input" name="first_name" id="eu-first" />
+        </div>
+        <div class="field">
+          <label class="field-label">Apellido</label>
+          <input type="text" class="input" name="last_name" id="eu-last" />
+        </div>
+      </div>
+      <div class="field">
+        <label class="field-label">Email</label>
+        <input type="email" class="input" name="email" id="eu-email" />
+      </div>
+      <div class="grid-2" style="gap:1rem;">
+        <div class="field">
+          <label class="field-label">Rol</label>
+          <select class="select" name="rol" id="eu-rol">
+            <option value="operador">Operador</option>
+            <option value="supervisor">Supervisor</option>
+            <option value="admin">Administrador</option>
+          </select>
+        </div>
+        <div class="field">
+          <label class="field-label">Activo</label>
+          <select class="select" name="activo" id="eu-activo">
+            <option value="true">Sí</option>
+            <option value="false">No</option>
+          </select>
+        </div>
+      </div>
+      <div class="flex gap-8" style="justify-content:flex-end;">
+        <button type="button" class="btn btn-ghost" onclick="closeModal('modal-editar')">Cancelar</button>
+        <button type="submit" class="btn btn-primary">Guardar cambios</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+{% endif %}
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+  function editarUsuario(id, username, first, last, email, rol, tel, activo) {
+    document.getElementById('form-editar-usuario').action = `/usuarios/${id}/editar/`;
+    document.getElementById('eu-username').value = username;
+    document.getElementById('eu-first').value = first;
+    document.getElementById('eu-last').value = last;
+    document.getElementById('eu-email').value = email;
+    document.getElementById('eu-rol').value = rol;
+    document.getElementById('eu-activo').value = activo ? 'true' : 'false';
+    openModal('modal-editar');
+  }
+</script>
+{% endblock %}

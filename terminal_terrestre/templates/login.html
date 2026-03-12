@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="es" data-theme="light">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Ingresar — Terminal Terrestre Cariamanga</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700;800&family=Barlow:wght@300;400;500;600&family=Source+Code+Pro:wght@400;500&display=swap" rel="stylesheet" />
+
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --navy:     #0d1b2e;
+      --navy-mid: #152540;
+      --border:   #2a3f5f;
+      --surface:  #ffffff;
+      --amber:    #e8a020;
+      --text:     #0d1b2e;
+      --text2:    #4a6080;
+      --red:      #dc2626;
+    }
+
+    body {
+      font-family: 'Barlow', sans-serif;
+      background: var(--navy);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 1rem;
+      position: relative;
+      overflow: hidden;
+    }
+
+    /* Decorative background shapes */
+    body::before {
+      content: '';
+      position: absolute;
+      width: 600px; height: 600px;
+      background: radial-gradient(circle, rgba(232,160,32,.08) 0%, transparent 70%);
+      top: -200px; right: -200px;
+      pointer-events: none;
+    }
+    body::after {
+      content: '';
+      position: absolute;
+      width: 400px; height: 400px;
+      background: radial-gradient(circle, rgba(14,165,200,.06) 0%, transparent 70%);
+      bottom: -100px; left: -100px;
+      pointer-events: none;
+    }
+
+    .login-wrap {
+      width: 100%;
+      max-width: 420px;
+      animation: loginIn .3s ease;
+    }
+    @keyframes loginIn {
+      from { transform: translateY(20px); opacity: 0; }
+      to   { transform: none; opacity: 1; }
+    }
+
+    .login-brand {
+      text-align: center;
+      margin-bottom: 2rem;
+    }
+    .brand-icon {
+      width: 64px; height: 64px;
+      background: var(--amber);
+      border-radius: 16px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 32px;
+      margin: 0 auto 1rem;
+      box-shadow: 0 8px 32px rgba(232,160,32,.35);
+    }
+    .brand-name {
+      font-family: 'Barlow Condensed', sans-serif;
+      font-size: 28px;
+      font-weight: 800;
+      color: #fff;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+    .brand-sub {
+      font-size: 13px;
+      color: rgba(255,255,255,.45);
+      margin-top: 4px;
+      text-transform: uppercase;
+      letter-spacing: .6px;
+    }
+
+    .login-card {
+      background: #fff;
+      border-radius: 16px;
+      padding: 2rem;
+      box-shadow: 0 24px 80px rgba(0,0,0,.4);
+    }
+    .login-card h2 {
+      font-family: 'Barlow Condensed', sans-serif;
+      font-size: 22px;
+      font-weight: 700;
+      margin-bottom: 1.5rem;
+      color: var(--navy);
+    }
+
+    .field { margin-bottom: 1rem; }
+    .field label {
+      display: block;
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: .6px;
+      color: var(--text2);
+      margin-bottom: 6px;
+    }
+    .field input {
+      width: 100%;
+      padding: 10px 14px;
+      background: #f4f7fb;
+      border: 1.5px solid #dde4ef;
+      border-radius: 8px;
+      font-size: 15px;
+      font-family: 'Barlow', sans-serif;
+      color: var(--navy);
+      outline: none;
+      transition: border-color .15s, box-shadow .15s;
+    }
+    .field input:focus {
+      border-color: var(--navy-mid);
+      box-shadow: 0 0 0 3px rgba(21,37,64,.12);
+    }
+
+    .alert-error {
+      background: #fee2e2;
+      color: #b91c1c;
+      border: 1px solid #fca5a5;
+      border-radius: 8px;
+      padding: 10px 14px;
+      font-size: 13px;
+      font-weight: 500;
+      margin-bottom: 1rem;
+    }
+
+    .btn-login {
+      width: 100%;
+      padding: 12px;
+      background: var(--navy-mid);
+      color: #fff;
+      border: none;
+      border-radius: 8px;
+      font-size: 15px;
+      font-weight: 700;
+      font-family: 'Barlow', sans-serif;
+      cursor: pointer;
+      transition: background .15s;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      margin-top: .5rem;
+    }
+    .btn-login:hover { background: var(--navy); }
+
+    .login-footer {
+      text-align: center;
+      color: rgba(255,255,255,.3);
+      font-size: 12px;
+      margin-top: 1.5rem;
+    }
+  </style>
+</head>
+<body>
+  <div class="login-wrap">
+    <div class="login-brand">
+      <div class="brand-icon">🚌</div>
+      <div class="brand-name">Terminal Terrestre</div>
+      <div class="brand-sub">Mons. Santiago Fernández García — Alcaldía de Calvas</div>
+    </div>
+
+    <div class="login-card">
+      <h2>Iniciar Sesión</h2>
+
+      {% if error %}
+        <div class="alert-error">{{ error }}</div>
+      {% endif %}
+
+      <form method="post" action="{% url 'login' %}">
+        {% csrf_token %}
+        <div class="field">
+          <label for="username">Usuario</label>
+          <input type="text" id="username" name="username"
+                 placeholder="Ingresa tu usuario"
+                 value="{{ username|default:'' }}"
+                 autocomplete="username" autofocus required />
+        </div>
+        <div class="field">
+          <label for="password">Contraseña</label>
+          <input type="password" id="password" name="password"
+                 placeholder="••••••••"
+                 autocomplete="current-password" required />
+        </div>
+        <button type="submit" class="btn-login">
+          Ingresar al sistema →
+        </button>
+      </form>
+    </div>
+
+    <div class="login-footer">
+      Sistema de Control de Acceso • Cariamanga, Ecuador
+    </div>
+  </div>
+
+  <script>
+    (function () {
+      const saved = localStorage.getItem('tt_theme');
+      if (saved === 'dark') document.documentElement.setAttribute('data-theme', 'dark');
+    })();
+  </script>
+</body>
+</html>

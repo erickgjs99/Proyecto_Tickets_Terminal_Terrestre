@@ -1,0 +1,208 @@
+{% extends "base.html" %}
+{% block title %}Recaudaciones{% endblock %}
+{% block page_title %}Registro de Recaudaciones{% endblock %}
+{% block nav_recaudaciones %}active{% endblock %}
+
+{% block content %}
+
+<!-- ================================================================
+     CONTROLES (no imprimir)
+     ================================================================ -->
+<div class="card mb-3 no-print">
+  <form method="get" action="{% url 'recaudaciones' %}" class="flex flex-center gap-12" style="flex-wrap:wrap;">
+
+    <div class="field mb-0">
+      <label class="field-label">Tipo de Reporte</label>
+      <select class="select" name="modo" id="modo-select"
+              onchange="toggleCampos()"
+              style="width:160px;">
+        <option value="diario"   {% if modo == 'diario'   %}selected{% endif %}>Diario</option>
+        <option value="mensual"  {% if modo == 'mensual'  %}selected{% endif %}>Mensual</option>
+        <option value="anual"    {% if modo == 'anual'    %}selected{% endif %}>Anual</option>
+      </select>
+    </div>
+
+    <div class="field mb-0" id="campo-fecha"
+         style="{% if modo != 'diario' %}display:none{% endif %}">
+      <label class="field-label">Fecha</label>
+      <input type="date" class="input" name="fecha"
+             value="{{ filtros.fecha|default:hoy }}"
+             style="width:180px;" />
+    </div>
+
+    <div class="field mb-0" id="campo-mes"
+         style="{% if modo != 'mensual' %}display:none{% endif %}">
+      <label class="field-label">Mes</label>
+      <input type="month" class="input" name="mes"
+             value="{{ filtros.mes|default:mes_actual }}"
+             style="width:180px;" />
+    </div>
+
+    <div class="field mb-0" id="campo-anio"
+         style="{% if modo != 'anual' %}display:none{% endif %}">
+      <label class="field-label">Año</label>
+      <input type="number" class="input" name="anio"
+             value="{{ filtros.anio|default:anio_actual }}"
+             min="2020" max="2099" style="width:120px;" />
+    </div>
+
+    {% if es_supervisor_o_admin %}
+    <div class="field mb-0">
+      <label class="field-label">Operador</label>
+      <select class="select" name="operador" style="width:180px;">
+        <option value="">Todos</option>
+        {% for op in operadores %}
+          <option value="{{ op.id }}"
+            {% if filtros.operador == op.id|stringformat:"s" %}selected{% endif %}>
+            {{ op.get_full_name|default:op.username }}
+          </option>
+        {% endfor %}
+      </select>
+    </div>
+    {% endif %}
+
+    <div style="margin-top:1.35rem;">
+      <button type="submit" class="btn btn-primary">
+        📊 Generar Reporte
+      </button>
+    </div>
+
+    {% if reporte %}
+    <div style="margin-top:1.35rem;">
+      <button type="button" class="btn btn-ghost" onclick="window.print()">
+        🖨️ Imprimir
+      </button>
+    </div>
+    {% endif %}
+
+  </form>
+</div>
+
+<!-- ================================================================
+     REPORTE OFICIAL
+     ================================================================ -->
+{% if reporte %}
+<div class="card" id="reporte-print">
+
+  <!-- Encabezado oficial -->
+  <div class="recaudacion-header">
+    <h1>Terminal Terrestre "Mons. Santiago Fernández García"</h1>
+    <h2>Alcaldía de Calvas</h2>
+    <h3>Registro de Recaudaciones
+      {% if modo == 'diario' %}Diarias
+      {% elif modo == 'mensual' %}Mensuales
+      {% else %}Anuales{% endif %}
+    </h3>
+  </div>
+
+  <!-- Meta del reporte -->
+  <div style="display:flex; justify-content:space-between; flex-wrap:wrap; gap:1rem; margin-bottom:1.5rem; font-size:14px;">
+    <div>
+      <strong>Período:</strong> {{ reporte.periodo }}
+    </div>
+    <div style="display:flex; gap:2rem;">
+      <div>
+        <strong>Ticket inicial:</strong>
+        <span class="mono">{{ reporte.ticket_inicial|default:"—" }}</span>
+      </div>
+      <div>
+        <strong>Ticket final:</strong>
+        <span class="mono">{{ reporte.ticket_final|default:"—" }}</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Tabla -->
+  <div class="table-wrap">
+    <table class="table" style="font-size:14px;">
+      <thead>
+        <tr style="background: var(--navy); color:#fff;">
+          <th style="color:#fff;">Detalle</th>
+          <th style="color:#fff; text-align:center;">Nº Ticket Inicial</th>
+          <th style="color:#fff; text-align:center;">Nº Ticket Final</th>
+          <th style="color:#fff; text-align:center;">Cant.</th>
+          <th style="color:#fff; text-align:center;">V. Unitario</th>
+          <th style="color:#fff; text-align:center;">V. Total</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for fila in reporte.filas %}
+        <tr>
+          <td style="font-weight:500;">{{ fila.detalle }}</td>
+          <td class="mono text-center small">{{ fila.ticket_inicial }}</td>
+          <td class="mono text-center small">{{ fila.ticket_final }}</td>
+          <td class="mono text-center bold">{{ fila.cantidad }}</td>
+          <td class="mono text-center">${{ fila.valor_unitario|floatformat:2 }}</td>
+          <td class="mono text-center bold">${{ fila.valor_total|floatformat:2 }}</td>
+        </tr>
+        {% empty %}
+        <tr>
+          <td colspan="6" class="text-center muted" style="padding:3rem;">
+            Sin movimientos en este período
+          </td>
+        </tr>
+        {% endfor %}
+
+        <!-- Fila total -->
+        {% if reporte.filas %}
+        <tr style="background: var(--navy-mid) !important; color:#fff; font-weight:700;">
+          <td colspan="5" style="text-align:right; padding: 12px 14px; font-size:15px; color:#fff;">
+            TOTAL GENERAL
+          </td>
+          <td class="mono text-center"
+              style="font-size:17px; color:#fff; padding: 12px 14px;">
+            ${{ reporte.total|floatformat:2 }}
+          </td>
+        </tr>
+        {% endif %}
+      </tbody>
+    </table>
+  </div>
+
+  <!-- Total en letras -->
+  {% if reporte.filas %}
+  <div style="margin: 1.5rem 0; padding: 12px 16px;
+    background: var(--surface2); border-radius: 8px;
+    font-size:14px; border-left: 4px solid var(--navy-mid);">
+    <strong>SON:</strong> {{ reporte.total_letras }}
+  </div>
+  {% endif %}
+
+  <!-- Campos depósito / fecha -->
+  <div style="display:grid; grid-template-columns:1fr 1fr; gap:2rem; margin:1.5rem 0; font-size:14px;">
+    <div>
+      <strong>Recaudación del período:</strong>
+      <div class="mono" style="font-size:22px; font-weight:600; color: var(--navy-mid); margin-top:4px;">
+        ${{ reporte.total|floatformat:2 }}
+      </div>
+    </div>
+    <div>
+      <strong>Depósito el día:</strong>
+      <div style="border-bottom: 1px solid var(--border); padding-bottom:4px; margin-top:20px; min-width:180px;"></div>
+    </div>
+  </div>
+
+  <!-- Firma -->
+  <div class="firma-box">
+    <div class="firma-linea">
+      <div style="font-weight:600; font-size:14px;">Administradora del Terminal</div>
+      <div class="small muted">Terminal Terrestre "Mons. Santiago Fernández García"</div>
+      <div class="small muted">Alcaldía de Calvas</div>
+    </div>
+  </div>
+
+</div>
+{% endif %}
+
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+  function toggleCampos() {
+    const modo = document.getElementById('modo-select').value;
+    document.getElementById('campo-fecha').style.display  = modo === 'diario'  ? '' : 'none';
+    document.getElementById('campo-mes').style.display    = modo === 'mensual' ? '' : 'none';
+    document.getElementById('campo-anio').style.display   = modo === 'anual'   ? '' : 'none';
+  }
+</script>
+{% endblock %}
