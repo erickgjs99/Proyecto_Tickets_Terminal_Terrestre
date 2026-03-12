@@ -1,0 +1,34 @@
+# Entorno virtual
+venv/
+.venv/
+
+# Archivos de entorno (se pasan en runtime)
+.env
+.env.production
+
+# Caché de Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+
+# Archivos estáticos generados (se generan en startup)
+staticfiles/
+media/
+
+# Control de versiones
+.git/
+.gitignore
+
+# Herramientas de desarrollo
+.vscode/
+.idea/
+*.swp
+
+# Tests
+.coverage
+htmlcov/
+
+# Claude
+.claude/

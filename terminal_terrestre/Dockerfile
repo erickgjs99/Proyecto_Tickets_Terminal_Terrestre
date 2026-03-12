@@ -1,5 +1,5 @@
 # ============================================================
-# Terminal Terrestre — Dockerfile (backend)
+# Terminal Terrestre — Dockerfile
 # ============================================================
 FROM python:3.12-slim
 
@@ -14,15 +14,19 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Código fuente
+# Código fuente (respeta .dockerignore)
 COPY . .
 
-# Variables de entorno por defecto (sobrescribir en .env)
+# Usuario sin privilegios root
+RUN addgroup --system appgroup && adduser --system --ingroup appgroup appuser
+RUN chown -R appuser:appgroup /app
+USER appuser
+
+# Variables de entorno por defecto
 ENV DJANGO_SETTINGS_MODULE=config.settings \
     PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1
 
-# Puerto de Waitress
 EXPOSE 8000
 
 CMD ["python", "-m", "waitress", "--host=0.0.0.0", "--port=8000", "config.wsgi:application"]

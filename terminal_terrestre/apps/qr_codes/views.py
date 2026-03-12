@@ -101,19 +101,31 @@ class GenerarTicketView(LoginRequiredMixin, View):
             employee_no=codigo, inicio=ahora, fin=expira
         )
 
+        if not (res_usuario.exitoso and res_tarjeta.exitoso):
+            logger.warning(
+                "Hikvision falló — usuario_ok=%s tarjeta_ok=%s | %s",
+                res_usuario.exitoso, res_tarjeta.exitoso,
+                f"Usuario: {res_usuario.respuesta_raw[:200]} | Tarjeta: {res_tarjeta.respuesta_raw[:200]}",
+            )
+            messages.error(
+                request,
+                "No se pudo registrar el acceso en el dispositivo Hikvision. "
+                "El ticket no fue generado. Verifique la conexión con el dispositivo.",
+            )
+            return render(request, self.template_name, self._ctx(request, form_data))
+
         respuesta_hik = (
             f"Usuario: {res_usuario.respuesta_raw[:300]} | Tarjeta: {res_tarjeta.respuesta_raw[:300]}"
         )
 
         imagen_qr = generar_qr_base64(codigo)
-        estado = EstadoTicket.ACTIVO if (res_usuario.exitoso and res_tarjeta.exitoso) else EstadoTicket.ERROR
 
         ticket = TicketQR.objects.create(
             codigo=codigo, tipo_ticket=tipo, precio=tipo.precio,
             cooperativa=cooperativa, minutos_expiracion=minutos,
-            fecha_inicio=ahora, fecha_expiracion=expira, estado=estado,
+            fecha_inicio=ahora, fecha_expiracion=expira, estado=EstadoTicket.ACTIVO,
             imagen_qr_base64=imagen_qr,
-            hik_usuario_ok=res_usuario.exitoso, hik_tarjeta_ok=res_tarjeta.exitoso,
+            hik_usuario_ok=True, hik_tarjeta_ok=True,
             hik_respuesta=respuesta_hik, operador=request.user,
         )
 

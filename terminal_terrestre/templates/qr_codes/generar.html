@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% load l10n %}
 {% block title %}Generar QR{% endblock %}
 {% block page_title %}Generar Ticket QR{% endblock %}
 {% block nav_generar %}active{% endblock %}
@@ -180,9 +181,9 @@
             <option value="">— Selecciona tipo —</option>
             {% for tipo in tipos_ticket %}
               <option value="{{ tipo.id }}"
-                data-precio="{{ tipo.precio }}"
+                data-precio="{{ tipo.precio|unlocalize }}"
                 {% if form_data.tipo_ticket == tipo.id|stringformat:"s" %}selected{% endif %}>
-                {{ tipo.nombre }} — ${{ tipo.precio }}
+                {{ tipo.nombre }} — ${{ tipo.precio|unlocalize }}
               </option>
             {% endfor %}
           </select>
@@ -243,7 +244,7 @@
         </div>
         <div class="ticket-meta-item">
           <div class="ticket-meta-key">Precio</div>
-          <div class="ticket-meta-val mono">${{ ticket.precio }}</div>
+          <div class="ticket-meta-val mono">${{ ticket.precio|unlocalize }}</div>
         </div>
         <div class="ticket-meta-item">
           <div class="ticket-meta-key">Expiración</div>
@@ -307,7 +308,7 @@
       {% if ticket.venta %}{{ ticket.venta.numero_ticket }}{% else %}—{% endif %}
     </div>
     <div class="tf-tipo">{{ ticket.tipo_ticket.nombre }}</div>
-    <div class="tf-valor">Valor: ${{ ticket.precio }}</div>
+    <div class="tf-valor">Valor: ${{ ticket.precio|unlocalize }}</div>
     <div class="tf-fecha">
       {{ ticket.fecha_creacion|date:"d/m/Y" }}&nbsp;&nbsp;Hora:&nbsp;{{ ticket.fecha_creacion|date:"H:i" }}
     </div>
@@ -358,7 +359,7 @@
           </td>
           <td class="mono small muted">{{ t.codigo|truncatechars:14 }}</td>
           <td>{{ t.tipo_ticket.nombre }}</td>
-          <td class="mono">${{ t.precio }}</td>
+          <td class="mono">${{ t.precio|unlocalize }}</td>
           <td class="muted small">{{ t.cooperativa.nombre|default:"—" }}</td>
           <td class="mono small">
             {{ t.fecha_expiracion|date:"H:i" }}

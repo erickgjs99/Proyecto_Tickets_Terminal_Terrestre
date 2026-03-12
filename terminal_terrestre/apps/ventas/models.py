@@ -5,7 +5,7 @@ Modelo de ventas con numeración secuencial de tickets (TK-000001).
 El número de ticket es continuo y se pasa entre operadores al cambiar turno.
 """
 
-from django.db import models
+from django.db import models, transaction
 
 from apps.cooperativas.models import Cooperativa
 from apps.qr_codes.models import TicketQR
@@ -77,8 +77,11 @@ class Venta(models.Model):
     def save(self, *args, **kwargs):
         """Asigna número de ticket secuencial por tipo antes del primer guardado."""
         if not self.numero_ticket:
-            self.numero_ticket = self._siguiente_numero_ticket(self.tipo_ticket)
-        super().save(*args, **kwargs)
+            with transaction.atomic():
+                self.numero_ticket = self._siguiente_numero_ticket(self.tipo_ticket)
+                super().save(*args, **kwargs)
+        else:
+            super().save(*args, **kwargs)
 
     @classmethod
     def _siguiente_numero_ticket(cls, tipo_ticket) -> str:
@@ -88,7 +91,13 @@ class Venta(models.Model):
         Ej: BIP-000001, TK-000001, etc.
         """
         prefijo = (getattr(tipo_ticket, "prefijo", None) or "TK").strip().upper()
-        ultimo = cls.objects.filter(tipo_ticket=tipo_ticket).order_by("-numero_ticket").first()
+        ultimo = (
+            cls.objects
+            .select_for_update()
+            .filter(tipo_ticket=tipo_ticket)
+            .order_by("-id")
+            .first()
+        )
         if ultimo:
             try:
                 # El número está siempre después del primer guion

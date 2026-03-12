@@ -28,5 +28,8 @@ python-dotenv==1.0.1
 # Servidor WSGI para producción en Windows
 waitress==3.0.0
 
+# Archivos estáticos en producción (sin nginx)
+whitenoise==6.12.0
+
 # Total en letras (reporte de recaudación)
 num2words==0.5.13
